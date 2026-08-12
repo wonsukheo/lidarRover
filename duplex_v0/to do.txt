@@ -1,0 +1,3 @@
+to do
+a. encoder connect all 4 and sync
+b. find rpm= (change in ticks/90) * (60/ change in time in sec) @ full speed

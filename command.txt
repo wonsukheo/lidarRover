@@ -1,0 +1,98 @@
+[term1]
+ros2 run joy joy_node
+
+[term2]
+ros2 launch rplidar_ros rplidar.launch.py
+
+[term3]
+python3 rover_base_node.py
+
+[term4]
+ros2 run tf2_ros static_transform_publisher --x 0.03 --y 0.0 --z 0.3 --yaw 0 --pitch 0 --roll 0 --frame-id base_footprint --child-frame-id laser
+
+[term5]
+ros2 launch slam_toolbox online_sync_launch.py
+ros2 launch slam_toolbox online_sync_launch.py slam_params_file:=/home/lidarrover/mapper_params.yaml
+
+
+***save image***
+[term6]
+ros2 run nav2_map_server map_saver_cli -f ~/demomap --fmt png
+
+ros2 service call /slam_toolbox/save_map slam_toolbox/srv/SaveMap "{name: {data: '/home/lidarrover/demomap'}}"
+
+ls -lh ~/demomap.*
+
+******************
+
+***test cmd_vel***
+[term1] 
+ros2 topic echo /odom --field twist.twist.angular.z
+
+[term2]
+ros2 topic pub -r 10 /cmd_vel geometry_msgs/msg/Twist "{linear: {x: -0.2}}"
+
+*****************
+
+[term nav2]
+ros2 launch nav2_bringup navigation_launch.py use_sim_time:=false
+
+[term foxglove]
+ros2 launch foxglove_bridge foxglove_bridge_launch.xml port:=8765
+
+
+[nav2.param]
+/opt/ros/jazzy/share/nav2_bringup/params/nav2_params.yaml
+
+[turn off]
+shutdown -h now
+
+**************************************************************
+ROS2 COMMANDS
+**************************************************************
+ros2 topic list
+
+
+
+**************************************************************
+AFTER REIMAGING
+**************************************************************
+1. Config ssh
+[term1]
+ssh-keygen -R 192.168.1.198
+
+[term2, do not ask pw]
+# Generate an SSH key if you don't already have one (press Enter for defaults)
+ssh-keygen -t ed25519
+
+# Copy your public key to the Raspberry Pi
+type $env:USERPROFILE\.ssh\id_ed25519.pub | ssh username@raspberrypi.local "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+
+[raspi term, bypass sudo pw]
+echo "$USER ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/$USER
+
+2. Once these two lines run, executing sudo apt update allows apt to read the new ROS 2 server and download packages like ros-jazzy-ros-base.
+[term1]
+sudo apt update && sudo apt install curl gnupg lsb-release -y
+sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
+
+3.Install ROS 2 Base & Developer Tools
+sudo apt update && sudo apt upgrade -y
+sudo apt install ros-jazzy-ros-base ros-dev-tools -y
+
+# Automatically source ROS 2 on every new terminal session
+echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc
+source ~/.bashrc
+
+4.install ros2 lib
+sudo apt install -y \
+  ros-jazzy-joy \
+  ros-jazzy-teleop-twist-joy \
+  ros-jazzy-slam-toolbox \
+  ros-jazzy-navigation2 \
+  ros-jazzy-nav2-bringup \
+  ros-jazzy-rplidar-ros
+
+# Add your user to the dialout group to access USB serial ports without root
+sudo usermod -aG dialout $USER
