@@ -42,6 +42,10 @@ class RoverBaseNode(Node):
         self.nav_right = 90
         self.last_button_state = 0
 
+        # Command Watchdog Timeout (0.5 seconds)
+        self.last_cmd_vel_time = self.get_clock().now()
+        self.cmd_vel_timeout = 0.5
+
         # Buffer for incoming encoder bytes
         self.buffer = bytearray()
 
@@ -62,11 +66,17 @@ class RoverBaseNode(Node):
 
     def cmd_vel_callback(self, msg):
         self.nav_left, self.nav_right = cmd_vel_to_servo(msg.linear.x, msg.angular.z)
+        self.last_cmd_vel_time = self.get_clock().now()
 
     def control_and_read_loop(self):
         if not self.ser or not self.ser.is_open:
             return
 
+        # Watchdog: Reset autonomous commands to neutral if messages stop
+        time_since_cmd = (self.get_clock().now() - self.last_cmd_vel_time).nanoseconds / 1e9
+        if self.mode == 1 and time_since_cmd > self.cmd_vel_timeout:
+            self.nav_left = 90
+            self.nav_right = 90
         # ==========================================
         # STEP A: Send Motor Packet to Arduino (TX)
         # ==========================================
@@ -105,7 +115,7 @@ class RoverBaseNode(Node):
                 t = TransformStamped()
                 t.header.stamp = now.to_msg()
                 t.header.frame_id = 'odom'
-                t.child_frame_id = 'base_footprint'
+                t.child_frame_id = 'base_link'
                 t.transform.translation.x = x
                 t.transform.translation.y = y
                 t.transform.rotation.z = qz
@@ -116,7 +126,7 @@ class RoverBaseNode(Node):
                 odom_msg = Odometry()
                 odom_msg.header.stamp = now.to_msg()
                 odom_msg.header.frame_id = 'odom'
-                odom_msg.child_frame_id = 'base_footprint'
+                odom_msg.child_frame_id = 'base_link'
                 odom_msg.pose.pose.position.x = x
                 odom_msg.pose.pose.position.y = y
                 odom_msg.pose.pose.orientation.z = qz
@@ -129,6 +139,11 @@ class RoverBaseNode(Node):
 
     def destroy_node(self):
         if self.ser and self.ser.is_open:
+            # Send neutral stop command [0xFF, 90, 90] before closing port
+            try:
+                self.ser.write(bytes([0xFF, 90, 90]))
+            except Exception:
+                pass
             self.ser.close()
         super().destroy_node()
 

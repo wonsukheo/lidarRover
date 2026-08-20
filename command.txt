@@ -8,12 +8,30 @@ ros2 launch rplidar_ros rplidar.launch.py
 python3 rover_base_node.py
 
 [term4]
-ros2 run tf2_ros static_transform_publisher --x 0.03 --y 0.0 --z 0.3 --yaw 0 --pitch 0 --roll 0 --frame-id base_footprint --child-frame-id laser
+ros2 run tf2_ros static_transform_publisher --x 0.03 --y 0.0 --z 0.18 --yaw 0 --pitch 0 --roll 0 --frame-id base_link --child-frame-id laser
 
 [term5]
 ros2 launch slam_toolbox online_sync_launch.py
 ros2 launch slam_toolbox online_sync_launch.py slam_params_file:=/home/lidarrover/mapper_params.yaml
 
+[term nav2]
+ros2 launch nav2_bringup navigation_launch.py use_sim_time:=false
+ros2 launch nav2_bringup navigation_launch.py use_sim_time:=false params_file:=/home/lidarrover/nav2_params.yaml
+
+
+[term foxglove]
+ros2 launch foxglove_bridge foxglove_bridge_launch.xml port:=8765
+
+[nav2.param]
+/opt/ros/jazzy/share/nav2_bringup/params/nav2_params.yaml
+
+**************************************************************
+ROS2 COMMANDS
+**************************************************************
+ros2 topic list
+
+[turn off]
+shutdown -h now
 
 ***save image***
 [term6]
@@ -24,34 +42,14 @@ ros2 service call /slam_toolbox/save_map slam_toolbox/srv/SaveMap "{name: {data:
 ls -lh ~/demomap.*
 
 ******************
-
-***test cmd_vel***
+test cmd_vel
+*******************
 [term1] 
 ros2 topic echo /odom --field twist.twist.angular.z
+while true; do ros2 topic echo /odom --field twist.twist.angular.z --once; sleep 5; done
 
 [term2]
-ros2 topic pub -r 10 /cmd_vel geometry_msgs/msg/Twist "{linear: {x: -0.2}}"
-
-*****************
-
-[term nav2]
-ros2 launch nav2_bringup navigation_launch.py use_sim_time:=false
-
-[term foxglove]
-ros2 launch foxglove_bridge foxglove_bridge_launch.xml port:=8765
-
-
-[nav2.param]
-/opt/ros/jazzy/share/nav2_bringup/params/nav2_params.yaml
-
-[turn off]
-shutdown -h now
-
-**************************************************************
-ROS2 COMMANDS
-**************************************************************
-ros2 topic list
-
+ros2 topic pub -r 0.2 /cmd_vel geometry_msgs/msg/Twist "{linear: {x: -0.2}}"	
 
 
 **************************************************************
